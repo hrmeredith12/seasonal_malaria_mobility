@@ -150,19 +150,42 @@ clean.model.output <- function(model.output, model, P){
   model.output_long$t.months <- as.Date(as.numeric(model.output_long$time.idx), origin ="2020-01-01")
   
   # determine count and proportion of population that traveled at the time point
+  model.output_long$leaving.SEIRA.i <- ifelse(model.output_long$hum.or.moz == "h", rowSums(P[["travelers"]])/model.output_long$total.pop * model.output_long$count, 0)
+  model.output_long$leaving.prop.total.i <- ifelse(model.output_long$hum.or.moz == "h", rowSums(P[["travelers"]])/model.output_long$total.pop, 0)
+  model.output_long$arriving.SEIRA.i <- ifelse(model.output_long$hum.or.moz == "h", colSums(P[["travelers"]])/model.output_long$total.pop * model.output_long$count, 0)
+  model.output_long$arriving.prop.total.i <- ifelse(model.output_long$hum.or.moz == "h", colSums(P[["travelers"]])/model.output_long$total.pop, 0)
   
-  model.output_long$leaving.i <- ifelse(model.output_long$hum.or.moz == "h", model.output_long$count * rowSums(P[["prob.travel"]]), 0)
-  model.output_long$arriving.i <- ifelse(model.output_long$hum.or.moz == "h", model.output_long$count * colSums(P[["prob.travel"]]), 0)
-  model.output_long <- model.output_long %>%
-    group_by(time.idx, subpop, hum.or.moz)%>%
-    mutate(leaving.total = sum(leaving.i),
-           arriving.total = sum(arriving.i),
-           prop.leaving.i = leaving.i/total.pop,
-           prop.arriving.i = arriving.i/total.pop, 
-           prop.leaving.tot = leaving.total/total.pop,
-           prop.arriving.tot = arriving.total/total.pop)
+  # model.output_long$leaving.i <- ifelse(model.output_long$hum.or.moz == "h", model.output_long$count * rowSums(P[["prob.travel"]]), 0)
+  # model.output_long$arriving.i <- ifelse(model.output_long$hum.or.moz == "h", model.output_long$count * colSums(P[["prob.travel"]]), 0)
+  # model.output_long <- model.output_long %>%
+  #   group_by(time.idx, subpop, hum.or.moz)%>%
+  #   mutate(leaving.total = sum(leaving.i),
+  #          arriving.total = sum(arriving.i),
+  #          prop.leaving.i = leaving.i/total.pop,
+  #          prop.arriving.i = arriving.i/total.pop, 
+  #          prop.leaving.tot = leaving.total/total.pop,
+  #          prop.arriving.tot = arriving.total/total.pop)
   
   # create category for all infectious people (I and A)
+  # infected <- subset(model.output_long, SEIR %in% c("I_h", "A_h"))
+  # infected.1 <- infected %>%
+  #   group_by(time.idx, subpop)%>%
+  #   summarise(SEIR = "all.infected_h",
+  #             count = sum(count),
+  #             hum.or.moz = "h", 
+  #             total.pop = total.pop,
+  #             prop.pop = count/total.pop,
+  #             t.months = t.months,
+  #             leaving.i = sum(leaving.i),
+  #             arriving.i = sum(arriving.i),
+  #             leaving.total = leaving.total,
+  #             arriving.total = arriving.total,
+  #             prop.leaving.i = leaving.i/total.pop,
+  #             prop.arriving.i = arriving.i/total.pop, 
+  #             prop.leaving.tot = leaving.total/total.pop,
+  #             prop.arriving.tot = arriving.total/total.pop 
+  #   )%>%
+  #   distinct(time.idx, subpop, .keep_all = T)
   infected <- subset(model.output_long, SEIR %in% c("I_h", "A_h"))
   infected.1 <- infected %>%
     group_by(time.idx, subpop)%>%
@@ -172,14 +195,16 @@ clean.model.output <- function(model.output, model, P){
               total.pop = total.pop,
               prop.pop = count/total.pop,
               t.months = t.months,
-              leaving.i = sum(leaving.i),
-              arriving.i = sum(arriving.i),
-              leaving.total = leaving.total,
-              arriving.total = arriving.total,
-              prop.leaving.i = leaving.i/total.pop,
-              prop.arriving.i = arriving.i/total.pop, 
-              prop.leaving.tot = leaving.total/total.pop,
-              prop.arriving.tot = arriving.total/total.pop 
+              leaving.SEIRA.i = sum(leaving.SEIRA.i),
+              leaving.prop.total.i = leaving.prop.total.i, 
+              arriving.SEIRA.i = sum(arriving.SEIRA.i),
+              arriving.prop.total.i = arriving.prop.total.i
+              # leaving.total = leaving.total,
+              # arriving.total = arriving.total,
+              # prop.leaving.i = leaving.i/total.pop,
+              # prop.arriving.i = arriving.i/total.pop, 
+              # prop.leaving.tot = leaving.total/total.pop,
+              # prop.arriving.tot = arriving.total/total.pop 
     )%>%
     distinct(time.idx, subpop, .keep_all = T)
   
@@ -517,14 +542,15 @@ biting <- function(t, y, parms) {
     K = K_0 * (1 + delta * cos(2 * pi * (t/365 + omega)))              # seasonal carrying capacity of environment (sinusoidal seasonal pattern, need to convert t is in years)
     xi_m = xi_m_0 / ( 1 - delta * cos(2 * pi * (t/365 + omega)))       # seasonal maturation rate of P. falciparum maturation
     mu_m = mu_m_0 / ( 1 + delta * cos(2 * pi * (t/365 + omega)))       # seasonal death rate of mosquitoes
-    seasonal.travel = (1 + delta_t * cos(2 * pi * (t/365 + omega_t)))  # seasonal fluctuation in travel
+    # seasonal.travel = (1 + delta_t * cos(2 * pi * (t/365 + omega_t)))  # seasonal fluctuation in travel
+    travel.rate <- travelers/H
     
     # humans
-    dS_h <- r * (E_h + I_h + A_h) + q2 * R_h - b_h * m * S_h * I_m  + colSums(prob.travel * seasonal.travel * S_h) - rowSums(prob.travel * seasonal.travel * S_h)      # susceptible humans
-    dE_h <- b_h * m * S_h * I_m  - (xi_h + r) * E_h                 + colSums(prob.travel * seasonal.travel * E_h) - rowSums(prob.travel * seasonal.travel * E_h)      # exposed humans
-    dI_h <- xi_h * E_h - (q1 + r) * I_h                             + colSums(prob.travel * seasonal.travel * I_h) - rowSums(prob.travel * seasonal.travel * I_h)      # infected humans
-    dR_h <- q1 * (I_h + A_h) - (theta * b_h * m * I_m + q2) * R_h   + colSums(prob.travel * seasonal.travel * R_h) - rowSums(prob.travel * seasonal.travel * R_h)      # recovered/immune humans
-    dA_h <- theta * b_h * m * R_h * I_m - (q1 + r) * A_h            + colSums(prob.travel * seasonal.travel * A_h) - rowSums(prob.travel * seasonal.travel * A_h)      # asymptomatically infected humans
+    dS_h <- r * (E_h + I_h + A_h) + q2 * R_h - b_h * m * S_h * I_m  + colSums(travel.rate * S_h) - rowSums(travel.rate * S_h)      #+ colSums(prob.travel * seasonal.travel * S_h) - rowSums(prob.travel * seasonal.travel * S_h)      # susceptible humans
+    dE_h <- b_h * m * S_h * I_m  - (xi_h + r) * E_h                 + colSums(travel.rate * E_h) - rowSums(travel.rate * E_h)      #+ colSums(prob.travel * seasonal.travel * E_h) - rowSums(prob.travel * seasonal.travel * E_h)      # exposed humans
+    dI_h <- xi_h * E_h - (q1 + r) * I_h                             + colSums(travel.rate * I_h) - rowSums(travel.rate * I_h)      #+ colSums(prob.travel * seasonal.travel * I_h) - rowSums(prob.travel * seasonal.travel * I_h)      # infected humans
+    dR_h <- q1 * (I_h + A_h) - (theta * b_h * m * I_m + q2) * R_h   + colSums(travel.rate * R_h) - rowSums(travel.rate * R_h)      #+ colSums(prob.travel * seasonal.travel * R_h) - rowSums(prob.travel * seasonal.travel * R_h)      # recovered/immune humans
+    dA_h <- theta * b_h * m * R_h * I_m - (q1 + r) * A_h             + colSums(travel.rate * A_h) - rowSums(travel.rate * A_h)      # + colSums(prob.travel * seasonal.travel * A_h) - rowSums(prob.travel * seasonal.travel * A_h)      # asymptomatically infected humans
     
     # mosquitoes
     dO <- beta_m * V - d_o * O - mu_o * (1 + (O + L)/ K) * O                 # eggs and early larval instars
@@ -539,6 +565,7 @@ biting <- function(t, y, parms) {
     list(res)
   })
 }
+
 biting.travel.matrix <- function(t, y, parms) {
   with(as.list(c(parms, y)), {
     

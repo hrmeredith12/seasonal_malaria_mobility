@@ -30,7 +30,7 @@ plot.baseline.comparison <- function(model1, model2, model1_name, model2_name){
     lims(y = c(0,0.5))
   
   movement <- ggplot(subset(model.compare, hum.or.moz == "h" ))+
-    geom_line(aes(x = t.months, y = prop.leaving.tot, linetype = as.factor(subpop), color = model), size = 1.5)+
+    geom_line(aes(x = t.months, y = leaving.prop.total.i, linetype = as.factor(subpop), color = model), size = 1.5)+
     scale_color_manual(name = "Model", 
                        limits = models,
                        labels = c(model1_name, model2_name),
@@ -46,7 +46,25 @@ plot.baseline.comparison <- function(model1, model2, model1_name, model2_name){
           axis.title = element_text(size = 16, hjust = 0.5, vjust = 0.5),
           legend.position = 'right') +
     labs(x = "Time (months)", y = "Travelers (proportion)")
-  # lims(y = c(0,0.15))
+  
+  # movement <- ggplot(subset(model.compare, hum.or.moz == "h" ))+
+  #   geom_line(aes(x = t.months, y = prop.leaving.tot, linetype = as.factor(subpop), color = model), size = 1.5)+
+  #   scale_color_manual(name = "Model", 
+  #                      limits = models,
+  #                      labels = c(model1_name, model2_name),
+  #                      values=c("black", "blue"))+
+  #   scale_linetype(name = "Sub-population")+
+  #   scale_x_date(labels = date_format("%b"))+
+  #   theme(aspect.ratio = 1,
+  #         panel.grid.major = element_blank(),
+  #         panel.grid.minor = element_blank(),
+  #         panel.background = element_blank(),
+  #         axis.line = element_line(colour = "black"),
+  #         axis.text = element_text(colour = 'black', size = 14),
+  #         axis.title = element_text(size = 16, hjust = 0.5, vjust = 0.5),
+  #         legend.position = 'right') +
+  #   labs(x = "Time (months)", y = "Travelers (proportion)")
+  # # lims(y = c(0,0.15))
   
   time.courses <- ggarrange(infections, movement, ncol = 1, nrow = 2,
                             common.legend = T,

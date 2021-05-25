@@ -6,7 +6,7 @@
 # Outputs include plots of seasonal dynamics of malaria cases and mosquito population
 
 # by Hannah Meredith
-# last updated May 10, 2021
+# last updated May 25, 2021
 
 
 # libraries
@@ -78,13 +78,17 @@ y0 <- c(
 
 
 # ##1. Simulate transmission without any movement (baseline) ----
-prob.travel = matrix(c(0, 0, 0, 0), nrow = subpop, ncol = subpop) # Assuming 0% of the population moves per day
-P[['prob.travel']] <- prob.travel
+# prob.travel = matrix(c(0, 0, 0, 0), nrow = subpop, ncol = subpop) # Assuming 0% of the population moves per day
+# P[['prob.travel']] <- prob.travel
+travelers = matrix(c(0, 0, 0, 0), nrow = subpop, ncol = subpop) # Assuming symmetrical mobility patterns
+P[['travelers']] <- travelers
 no.movement <- as.data.frame(mal.constant.mob.model(y0, P, "no.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
 
 ## 2. Simulate transmission with constant movement (constant.movement) ----
-prob.travel = matrix(c(0, 0.01, 0.01, 0), nrow = subpop, ncol = subpop) # Assuming 1 % of the population moves per day
-P[['prob.travel']] <- prob.travel
+# prob.travel = matrix(c(0, 0.01, 0.01, 0), nrow = subpop, ncol = subpop) # Assuming 1 % of the population moves per day
+# P[['prob.travel']] <- prob.travel
+travelers = matrix(c(0, 50, 50, 0), nrow = subpop, ncol = subpop) # Assuming symmetrical mobility patterns
+P[['travelers']] <- travelers
 base.movement <- as.data.frame(mal.constant.mob.model(y0, P, "constant.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
 base.constant.movement.plot <- plot.baseline.comparison(base.movement, no.movement, "Constant movement", "No movement")
 
