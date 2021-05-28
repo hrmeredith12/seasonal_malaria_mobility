@@ -1,6 +1,6 @@
 ## Mobility and Malaria transmission model functions
 ## Created for the Animal and Parasitism Book Chapter by Hannah Meredith and Amy Wesolowski
-## Last updated May 14, 2021
+## Last updated May 26, 2021
 
 
 make.constant.travel.rate.matrix <- function(travel.dates, prob.travel.base, prob.travel.holiday){
@@ -20,7 +20,6 @@ make.constant.travel.rate.matrix <- function(travel.dates, prob.travel.base, pro
   
   return(travel.rate.matrix)
 }
-
 make.specific.date.travel.rate.matrix <- function(travel.out.days, travel.back.days, prob.travel.base, prob.travel.holiday){
   
   travel.out.days <- lubridate::yday(travel.out.days) + P[["t_ss"]]
@@ -66,7 +65,6 @@ mal.constant.mob.model <- function(y0, P, model) {
   model.output.cleaned <- clean.model.output(model.output, model, P)
   return(model.output.cleaned)
 }
-
 mal.dynamic.mob.model <- function(y0, P, model){
   step = 1                                             # the step size of the ODE solver (set to 1 day)
   t = seq(0, P[["t_ss"]] + P[["treatment_pd"]], by = step) #duration of simulation = t_ss (time to reach steady state) + treatment period
@@ -85,7 +83,6 @@ mal.dynamic.mob.model <- function(y0, P, model){
   model.output.cleaned <- clean.model.output.OD.matrix(model.output, model, P)
   return(model.output.cleaned)
 }
-
 mal.constant.SEIRA.mob.model <- function(y0, P, model){
   step = 1                                             # the step size of the ODE solver (set to 1 day)
   t = seq(0, P[["t_ss"]] + P[["treatment_pd"]], by = step) #duration of simulation = t_ss (time to reach steady state) + treatment period
@@ -94,7 +91,7 @@ mal.constant.SEIRA.mob.model <- function(y0, P, model){
     rk(
       y = y0,
       times = t,
-      func = biting.SEIRA.mob,
+      func = biting,
       parms = P,
       method = "ode45",
       atol = 1e-10,
@@ -104,7 +101,6 @@ mal.constant.SEIRA.mob.model <- function(y0, P, model){
   model.output.cleaned <- clean.model.output.diff.I(model.output, model, P)
   return(model.output.cleaned)
 }
-
 mal.threshold.mob.model <- function(y0, P, model){
   step = 1                                             # the step size of the ODE solver (set to 1 day)
   t = seq(0, P[["t_ss"]] + P[["treatment_pd"]], by = step) #duration of simulation = t_ss (time to reach steady state) + treatment period
@@ -279,18 +275,18 @@ clean.model.output.diff.I <- function(model.output, model, P){
   
   # determine count and proportion of population that traveled at the time point
   
-  model.output_long$leaving.i <- ifelse(model.output_long$SEIR %in% c("S_h", "E_h", "R_h", "A_h"), model.output_long$count * rowSums(P[["prob.travel.SERA"]]),
-                                        ifelse(model.output_long$SEIR %in% c("I_h"), model.output_long$count * rowSums(P[["prob.travel.I"]]),0))
-  model.output_long$arriving.i <- ifelse(model.output_long$SEIR %in% c("S_h", "E_h", "R_h", "A_h"), model.output_long$count * colSums(P[["prob.travel.SERA"]]), 
-                                         ifelse(model.output_long$SEIR %in% c("I_h"), model.output_long$count * colSums(P[["prob.travel.I"]]), 0))
-  model.output_long <- model.output_long %>%
-    group_by(time.idx, subpop, hum.or.moz)%>%
-    mutate(leaving.total = sum(leaving.i),
-           arriving.total = sum(arriving.i),
-           prop.leaving.i = leaving.i/total.pop,
-           prop.arriving.i = arriving.i/total.pop, 
-           prop.leaving.tot = leaving.total/total.pop,
-           prop.arriving.tot = arriving.total/total.pop)
+  model.output_long$leaving.SEIRA.i <- ifelse(model.output_long$SEIR %in% c("S_h", "E_h", "R_h", "A_h"), rowSums(P[["travelers"]])/model.output_long$total.pop * model.output_long$count,
+                                              ifelse(model.output_long$SEIR %in% c("I_h"), rowSums(P[['adjust.I']] * P[["travelers"]])/model.output_long$total.pop * model.output_long$count, 0))
+  
+  model.output_long$leaving.prop.total.i <- ifelse(model.output_long$SEIR %in% c("S_h", "E_h", "R_h", "A_h"), rowSums(P[["travelers"]])/model.output_long$total.pop,
+                                                   ifelse(model.output_long$SEIR %in% c("I_h"), rowSums(P[['adjust.I']] * P[["travelers"]])/model.output_long$total.pop, 0))
+  
+  model.output_long$arriving.SEIRA.i <- ifelse(model.output_long$SEIR %in% c("S_h", "E_h", "R_h", "A_h"), colSums(P[["travelers"]])/model.output_long$total.pop * model.output_long$count,
+                                               ifelse(model.output_long$SEIR %in% c("I_h"), colSums(P[['adjust.I']] * P[["travelers"]])/model.output_long$total.pop * model.output_long$count, 0))
+  
+  model.output_long$arriving.prop.total.i <- ifelse(model.output_long$SEIR %in% c("S_h", "E_h", "R_h", "A_h"), colSums(P[["travelers"]])/model.output_long$total.pop,
+                                                    ifelse(model.output_long$SEIR %in% c("I_h"), colSums(P[['adjust.I']] * P[["travelers"]])/model.output_long$total.pop, 0))
+  
   
   # create category for all infectious people (I and A)
   infected <- subset(model.output_long, SEIR %in% c("I_h", "A_h"))
@@ -302,14 +298,10 @@ clean.model.output.diff.I <- function(model.output, model, P){
               total.pop = total.pop,
               prop.pop = count/total.pop,
               t.months = t.months,
-              leaving.i = sum(leaving.i),
-              arriving.i = sum(arriving.i),
-              leaving.total = leaving.total,
-              arriving.total = arriving.total,
-              prop.leaving.i = leaving.i/total.pop,
-              prop.arriving.i = arriving.i/total.pop, 
-              prop.leaving.tot = leaving.total/total.pop,
-              prop.arriving.tot = arriving.total/total.pop 
+              leaving.SEIRA.i = sum(leaving.SEIRA.i),
+              leaving.prop.total.i = leaving.prop.total.i, 
+              arriving.SEIRA.i = sum(arriving.SEIRA.i),
+              arriving.prop.total.i = arriving.prop.total.i
     )%>%
     distinct(time.idx, subpop, .keep_all = T)
   
@@ -318,8 +310,6 @@ clean.model.output.diff.I <- function(model.output, model, P){
   
   return(model.output_long)  
 }
-
-
 clean.model.output.threshold <- function(model.output, model, P){
   
   model.output.orig <-model.output
@@ -503,9 +493,9 @@ biting <- function(t, y, parms) {
     # humans
     dS_h <- r * (E_h + I_h + A_h) + q2 * R_h - b_h * m * S_h * I_m  + colSums(travel.rate * S_h) - rowSums(travel.rate * S_h)      #+ colSums(prob.travel * seasonal.travel * S_h) - rowSums(prob.travel * seasonal.travel * S_h)      # susceptible humans
     dE_h <- b_h * m * S_h * I_m  - (xi_h + r) * E_h                 + colSums(travel.rate * E_h) - rowSums(travel.rate * E_h)      #+ colSums(prob.travel * seasonal.travel * E_h) - rowSums(prob.travel * seasonal.travel * E_h)      # exposed humans
-    dI_h <- xi_h * E_h - (q1 + r) * I_h                             + colSums(travel.rate * I_h) - rowSums(travel.rate * I_h)      #+ colSums(prob.travel * seasonal.travel * I_h) - rowSums(prob.travel * seasonal.travel * I_h)      # infected humans
+    dI_h <- xi_h * E_h - (q1 + r) * I_h                             + adjust.I * colSums(travel.rate * I_h) - adjust.I * rowSums(travel.rate * I_h)      #+ colSums(prob.travel * seasonal.travel * I_h) - rowSums(prob.travel * seasonal.travel * I_h)      # infected humans
     dR_h <- q1 * (I_h + A_h) - (theta * b_h * m * I_m + q2) * R_h   + colSums(travel.rate * R_h) - rowSums(travel.rate * R_h)      #+ colSums(prob.travel * seasonal.travel * R_h) - rowSums(prob.travel * seasonal.travel * R_h)      # recovered/immune humans
-    dA_h <- theta * b_h * m * R_h * I_m - (q1 + r) * A_h             + colSums(travel.rate * A_h) - rowSums(travel.rate * A_h)      # + colSums(prob.travel * seasonal.travel * A_h) - rowSums(prob.travel * seasonal.travel * A_h)      # asymptomatically infected humans
+    dA_h <- theta * b_h * m * R_h * I_m - (q1 + r) * A_h            + colSums(travel.rate * A_h) - rowSums(travel.rate * A_h)      # + colSums(prob.travel * seasonal.travel * A_h) - rowSums(prob.travel * seasonal.travel * A_h)      # asymptomatically infected humans
     
     # mosquitoes
     dO <- beta_m * V - d_o * O - mu_o * (1 + (O + L)/ K) * O                 # eggs and early larval instars
@@ -520,7 +510,6 @@ biting <- function(t, y, parms) {
     list(res)
   })
 }
-
 biting.travel.matrix <- function(t, y, parms) {
   with(as.list(c(parms, y)), {
     
@@ -582,65 +571,6 @@ biting.travel.matrix <- function(t, y, parms) {
     list(res)
   })
 }
-biting.SEIRA.mob <- function(t, y, parms) {
-  with(as.list(c(parms, y)), {
-    
-    O <- unname(y[names(y) %like% 'O'])
-    L <- unname(y[names(y) %like% 'L'])
-    P <- unname(y[names(y) %like% 'P'])
-    S_m <- unname(y[names(y) %like% 'S_m'])
-    E_m <- unname(y[names(y) %like% 'E_m'])
-    I_m <- unname(y[names(y) %like% 'I_m'])
-    S_h <- unname(y[names(y) %like% 'S_h'])
-    E_h <- unname(y[names(y) %like% 'E_h'])
-    I_h <- unname(y[names(y) %like% 'I_h'])
-    R_h <- unname(y[names(y) %like% 'R_h'])
-    A_h <- unname(y[names(y) %like% 'A_h'])
-    dO <- rep(0,subpop)
-    dL <- rep(0,subpop)
-    dP <- rep(0,subpop)
-    dS_m <- rep(0,subpop)
-    dE_m <- rep(0,subpop)
-    dI_m <- rep(0,subpop)
-    dS_h <- rep(0,subpop)
-    dE_h <- rep(0,subpop)
-    dI_h <- rep(0,subpop)
-    dR_h <- rep(0,subpop)
-    dA_h <- rep(0,subpop)
-    
-    # EQs and ODEs
-    V <- S_m + E_m + I_m                # total mosquito population
-    H <- S_h + E_h + I_h + R_h + A_h    # total human population
-    
-    b_h <-  a * b    #  proportion of bites resulting in human infections 
-    b_m <-  a * c     #  proportion of bites resulting in mosquito infections    
-    
-    K = K_0 * (1 + delta * cos(2 * pi * (t/365 + omega)))              # seasonal carrying capacity of environment (sinusoidal seasonal pattern, need to convert t is in years)
-    xi_m = xi_m_0 / ( 1 - delta * cos(2 * pi * (t/365 + omega)))       # seasonal maturation rate of P. falciparum maturation
-    mu_m = mu_m_0 / ( 1 + delta * cos(2 * pi * (t/365 + omega)))       # seasonal death rate of mosquitoes
-    seasonal.travel = (1 + delta_t * cos(2 * pi * (t/365 + omega_t)))  # seasonal fluctuation in travel
-    
-    # humans
-    dS_h <- r * (E_h + I_h + A_h) + q2 * R_h - b_h * m * S_h * I_m  + colSums(prob.travel.SERA * seasonal.travel * S_h) - rowSums(prob.travel.SERA * seasonal.travel * S_h)      # susceptible humans
-    dE_h <- b_h * m * S_h * I_m  - (xi_h + r) * E_h                 + colSums(prob.travel.SERA * seasonal.travel * E_h) - rowSums(prob.travel.SERA * seasonal.travel * E_h)      # exposed humans
-    dI_h <- xi_h * E_h - (q1 + r) * I_h                             + colSums(prob.travel.I * seasonal.travel * I_h) - rowSums(prob.travel.I * seasonal.travel * I_h)      # infected humans
-    dR_h <- q1 * (I_h + A_h) - (theta * b_h * m * I_m + q2) * R_h   + colSums(prob.travel.SERA * seasonal.travel * R_h) - rowSums(prob.travel.SERA * seasonal.travel * R_h)      # recovered/immune humans
-    dA_h <- theta * b_h * m * R_h * I_m - (q1 + r) * A_h            + colSums(prob.travel.SERA * seasonal.travel * A_h) - rowSums(prob.travel.SERA * seasonal.travel * A_h)      # asymptomatically infected humans
-    
-    # mosquitoes
-    dO <- beta_m * V - d_o * O - mu_o * (1 + (O + L)/ K) * O                 # eggs and early larval instars
-    dL <- d_o * O - d_l * L - mu_l * (1 + gam * (O + L)/ K) * L              # late larval instars
-    dP <- d_l * L - d_p * P - mu_p * P                                       # pupae
-    dS_m <- 1/2 * d_p * P - b_m * (I_h + sigma * A_h) * S_m - mu_m * S_m     # susceptible mosquitoes
-    dE_m <- b_m * (I_h + sigma * A_h) * S_m - (xi_m + mu_m) * E_m            # exposed mosquitoes  
-    dI_m <- xi_m * E_m - mu_m * I_m                                          # infected mosquitoes
-    
-    # output
-    res <- c(dS_h, dE_h, dI_h, dR_h, dA_h, dO, dL, dP, dS_m, dE_m, dI_m)
-    list(res)
-  })
-}
-
 biting.threshold.mob <- function(t, y, parms) {
   with(as.list(c(parms, y)), {
     

@@ -30,7 +30,7 @@ plot.baseline.comparison <- function(model1, model2, model1_name, model2_name, t
     lims(y = c(0,0.5))+
     ggtitle(title)
   
-  movement <- ggplot(subset(model.compare, hum.or.moz == "h" ))+
+  movement <- ggplot(subset(model.compare, SEIR %in% c("all.infected_h")))+
     geom_line(aes(x = t.months, y = leaving.prop.total.i, linetype = model, color = as.factor(subpop), alpha = model), size = 2)+
     scale_color_manual(name = "Population", 
                        values=c("black", "blue"))+
@@ -104,3 +104,81 @@ plot.baseline.comparison.diff.I <- function(model1, model2, model1_name, model2_
   
   return(time.courses)
 }
+
+## Plotting time courses of cases and travelers as well as % change in annual cases
+plot.cases.movement.impact <- function(movement.scenarios, base.movement){
+
+  movement.totals <- subset(movement.scenarios, SEIR == "all.infected_h") %>%
+    group_by(model.name, subpop) %>%
+    summarise(total.infections = sum(count))
+  baseline.totals <- subset(base.movement, SEIR == "all.infected_h") %>%
+    group_by(subpop) %>%
+    summarise(total.infections = sum(count))
+  movement.totals <- left_join(movement.totals, baseline.totals, by = "subpop")
+  movement.totals <- movement.totals %>%
+    mutate(change.in.infection = round((total.infections.x - total.infections.y)/total.infections.y*100,2))
+  
+  fig.infections <- ggplot(subset(movement.scenarios, SEIR %in% c("all.infected_h")), aes(t.months, prop.pop.x, color = as.factor(subpop)))+
+    geom_line(size = 1, linetype = 1)+
+    scale_color_manual(name = "Population", 
+                       values=c("black", "blue"))+
+    scale_x_date(breaks = seq(as.Date("2020-01-01"), 
+                              as.Date("2020-12-01"), by = "3 months"), date_labels ="%b")+
+    scale_y_continuous(breaks = c(0, 0.25, 0.5), limits = c(0, 0.6))+
+    facet_wrap(~model.name, nrow = 1)+
+    theme(aspect.ratio = 1,
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.line = element_line(colour = "black"),
+          axis.text = element_text(colour = 'black', size = 12),
+          axis.title = element_text(size = 12, hjust = 0.5, vjust = 0.5),
+          axis.text.x = element_blank(),
+          legend.position = 'none',
+          strip.text = element_blank(),
+          strip.background = element_blank()) +
+    labs(x = "", y = "Infections (proportion)")+ 
+    geom_line(aes(t.months, prop.pop.y, color = as.factor(subpop)),size = 1.5, linetype = 1, alpha = 0.3)
+  
+  fig.movement <- ggplot(subset(movement.scenarios, SEIR %in% c("all.infected_h")), aes(t.months, leaving.prop.total.i.x, color = as.factor(subpop)))+
+    geom_line(size = 1, linetype = 1)+
+    scale_color_manual(name = "Population", 
+                       values=c("black", "blue"))+
+    scale_x_date(breaks = seq(as.Date("2020-01-01"), 
+                              as.Date("2020-12-01"), by = "3 months"), date_labels ="%b")+
+    scale_y_continuous(breaks = c(0, 0.025, 0.05), limits = c(0,0.06))+ 
+    facet_wrap(~model.name, nrow = 1)+
+    theme(aspect.ratio = 1,
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.line = element_line(colour = "black"),
+          axis.text = element_text(colour = 'black', size = 12),
+          axis.title = element_text(size = 12, hjust = 0.5, vjust = 0.5),
+          legend.position = 'none',
+          strip.text = element_blank(),
+          strip.background = element_blank()) +
+    labs(x = "Time (months)", y = "Travelers (proportion)")+
+    geom_line(aes(t.months, leaving.prop.total.i.y, color = as.factor(subpop)),size = 1.5, linetype = 1, alpha = 0.3)
+  
+  
+  fig.case.impact <- ggplot(movement.totals, aes(change.in.infection, model.name, fill = as.factor(subpop)))+
+    geom_bar(stat = "identity")+
+    labs(y = "Movement scenario", x = "Annual % change in cases,\n relative to baseline movement", fill = "Population")+
+    scale_fill_manual(values = c("black", "blue"))+
+    theme(aspect.ratio = 1,
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.line = element_line(colour = "black"),
+          axis.text = element_text(colour = 'black', size = 12),
+          axis.title = element_text(size = 12, hjust = 0.5, vjust = 0.5),
+          legend.position = 'none',
+          legend.title = element_text(size = 12),
+          legend.text = element_text(size = 12))
+  
+  plots <- list(fig.infections, fig.movement, fig.case.impact)
+  return(plots)
+
+}
+

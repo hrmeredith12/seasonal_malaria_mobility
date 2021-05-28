@@ -60,7 +60,8 @@ P <- list(
   treatment_pd = 1 * 365,   # treatment period [days]
   subpop = subpop, # number of subpopulations to model
   delta_t = matrix(c(0, 0, 0 ,0), nrow = 2, ncol = 2),   # amplitude of seasonal mobility : 0.5
-  omega_t = matrix(c(0 ,0 ,0, 0), nrow = 2, ncol = 2))  # phase of seasonal mobility
+  omega_t = matrix(c(0 ,0 ,0, 0), nrow = 2, ncol = 2),  # phase of seasonal mobility
+  adjust.I = 1) # scaling factor to adjust number of Infected travelers, relative to other groups
 
 # define initial conditions
 y0 <- c(
@@ -80,184 +81,103 @@ y0 <- c(
 ##1. Simulate transmission without any movement (baseline) ----
 travelers = matrix(c(0, 0, 0, 0), nrow = subpop, ncol = subpop) # Assuming symmetrical mobility patterns
 P[['travelers']] <- travelers
-no.movement <- as.data.frame(mal.constant.mob.model(y0, P, "no.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
+no.movement <- as.data.frame(mal.constant.mob.model(y0, P, "no.movement"))  
 
 ## 2. Simulate transmission with constant movement (constant.movement) ----
 travelers = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop) # Assuming symmetrical mobility patterns
 P[['travelers']] <- travelers
-base.movement <- as.data.frame(mal.constant.mob.model(y0, P, "constant.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
-# base.constant.movement.plot <- plot.baseline.comparison(base.movement, no.movement, "Constant movement", "No movement", "Constant vs None")
+base.movement <- as.data.frame(mal.constant.mob.model(y0, P, "constant.movement"))
 
-## 3. Simulate transmission with bi-directional movement peaking in sync with malaria (peak.movement) ----
-travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
-travelers.holiday = matrix(c(0, 50, 50, 0), nrow = subpop, ncol = subpop)
-travel.days = seq(as.Date("2020-06-01"), as.Date("2020-09-01"),1)  # enter start and end date
-travel.days = c(travel.days)
+# ## 3. Simulate transmission with bi-directional movement peaking in sync with malaria (peak.movement) ----
+# travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
+# travelers.holiday = matrix(c(0, 50, 50, 0), nrow = subpop, ncol = subpop)
+# travel.days = seq(as.Date("2020-06-01"), as.Date("2020-09-01"),1)  # enter start and end date
+# travel.days = c(travel.days)
+# 
+# travelers <- make.constant.travel.rate.matrix(travel.dates, travelers.base, travelers.holiday)
+# P[['travelers']] <- travelers
+# peak.movement <- as.data.frame(mal.dynamic.mob.model(y0, P, "peak.movement"))  
+# peak.movement.1 <- peak.movement[ ,!colnames(peak.movement) %in% c("inbound", "outbound")]
+# 
+# ## 4. Simulate transmission with set days of movement peaking in sync with malaria (peak.movement.stay) ----
+# travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
+# travelers.holiday <- cbind.data.frame(c(0, 50, 5, 0),
+#                                         c(0, 5, 50, 0))
+# travel.out.days <- seq(as.Date("2020-06-01"), as.Date("2020-06-10"), 1) # enter start and end date for outbound trips
+# travel.back.days <- seq(as.Date("2020-08-26"), as.Date("2020-09-04"), 1)  # enter start and end date for return trips
+# travelers <- make.specific.date.travel.rate.matrix(travel.out.days, travel.back.days, travelers.base, travelers.holiday)
+# P[['travelers']] <- travelers
+# peak.movement.2 <- as.data.frame(mal.dynamic.mob.model(y0, P, "peak.and.stay.movement"))  
+# peak.movement.2 <- peak.movement.2[ ,!colnames(peak.movement.2) %in% c("inbound", "outbound")]
+# 
+# ## 5. Simulate transmission with bi-directional movement peaking out of sync with malaria (off.peak.movement) ----
+# travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
+# travelers.holiday = matrix(c(0, 50, 50, 0), nrow = subpop, ncol = subpop)
+# travel.days = seq(as.Date("2020-01-01"), as.Date("2020-04-01"),1)  # enter start and end date
+# travel.days = c(travel.days)
+# 
+# travelers <- make.constant.travel.rate.matrix(travel.dates, travelers.base, travelers.holiday)
+# P[['travelers']] <- travelers
+# off.peak.movement <- as.data.frame(mal.dynamic.mob.model(y0, P, "off.peak.movement"))  
+# off.peak.movement <- off.peak.movement[ ,!colnames(off.peak.movement) %in% c("inbound", "outbound")]
+# 
+# ## 6. Simulate transmission with set days of movement peaking in sync with malaria (off.peak.movement.stay) ----
+# travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
+# travelers.holiday <- cbind.data.frame(c(0, 50, 5, 0),
+#                                       c(0, 5, 50, 0))
+# travel.out.days <- seq(as.Date("2020-01-01"), as.Date("2020-01-10"), 1) # enter start and end date for outbound trips
+# travel.back.days <- seq(as.Date("2020-04-26"), as.Date("2020-05-05"), 1)  # enter start and end date for return trips
+# 
+# # travel.days <- c(as.Date("2020-01-01"), as.Date("2020-04-01"))
+# travelers <- make.specific.date.travel.rate.matrix(travel.out.days, travel.back.days, travelers.base, travelers.holiday)
+# P[['travelers']] <- travelers
+# off.peak.movement.2 <- as.data.frame(mal.dynamic.mob.model(y0, P, "off.peak.and.stay.movement"))  
+# off.peak.movement.2 <- off.peak.movement.2[ ,!colnames(off.peak.movement.2) %in% c("inbound", "outbound")]
+# 
+# 
+# ## FIGURE 1: Different forms of seasonal mobility and its impact on transmission
+# 
+# # Comobine movement scenarios for plotting
+# movement.scenarios <- rbind(peak.movement.1, peak.movement.2, off.peak.movement,off.peak.movement.2)
+# movement.scenarios <- left_join(movement.scenarios, base.movement[, c("time.idx", "SEIR", "subpop", "prop.pop", "leaving.prop.total.i")], by = c("time.idx", "SEIR", "subpop"))
+# movement.scenarios$model.name <- factor(movement.scenarios$model, 
+#                                         levels = c("off.peak.and.stay.movement", "peak.and.stay.movement", "off.peak.movement", "peak.movement"),
+#                                         labels = c("Relocate for Off-peak", "Relocate for Peak", "Increase for Off-peak", "Increase for Peak"))
+# # Generate plots
+# figure1 <- plot.cases.movement.impact(movement.scenarios, base.movement)
+# 
+# # # print figures/.save as png # uncommment to save figures
+# # png("Fig1_cases.png", width = 6, height = 2.25, units = 'in', res = 600)
+# # figure1[[1]]
+# # dev.off()
+# # png("Fig1_travelers.png", width = 6, height = 2.25, units = 'in', res = 600)
+# # figure1[[2]]
+# # dev.off()
+# # png("Fig1_case_impact.png", width = 4, height = 4, units = 'in', res = 600)
+# # figure1[[3]]
+# # dev.off()
 
-travelers <- make.constant.travel.rate.matrix(travel.dates, travelers.base, travelers.holiday)
+
+## 7. Simulate transmission with reduced mobility rates for infected people ------
+travelers = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop) 
 P[['travelers']] <- travelers
-peak.movement <- as.data.frame(mal.dynamic.mob.model(y0, P, "peak.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
-peak.movement.1 <- peak.movement[ ,!colnames(peak.movement) %in% c("inbound", "outbound")]
-# base.peak1.plot <- plot.baseline.comparison(base.movement, peak.movement.1, "Constant movement", "Constant peak movement", "Constant vs Increase at Peak")
+P[['adjust.I']] <- 0.1 # infected, symptomatic people move at 1/10th the rate
+reduced.I.constant.movement <- as.data.frame(mal.constant.SEIRA.mob.model(y0, P, "reduced.I.movement"))  
+base.reduced.I.constant.movement.plot <- plot.baseline.comparison(base.movement, reduced.I.constant.movement, "Constant movement", "Constant movement \n Reduced I rate", "X")
 
-## 4. Simulate transmission with set days of movement peaking in sync with malaria (peak.movement.stay) ----
-travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
-travelers.holiday <- cbind.data.frame(c(0, 50, 5, 0),
-                                        c(0, 5, 50, 0))
-travel.out.days <- seq(as.Date("2020-06-01"), as.Date("2020-06-10"), 1) # enter start and end date for outbound trips
-travel.back.days <- seq(as.Date("2020-08-26"), as.Date("2020-09-04"), 1)  # enter start and end date for return trips
-travelers <- make.specific.date.travel.rate.matrix(travel.out.days, travel.back.days, travelers.base, travelers.holiday)
+## 8. Simulate transmission with reduced mobility into/out of location when cases are above threshold------
+travelers = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop) 
 P[['travelers']] <- travelers
-peak.movement.2 <- as.data.frame(mal.dynamic.mob.model(y0, P, "peak.and.stay.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
-peak.movement.2 <- peak.movement.2[ ,!colnames(peak.movement.2) %in% c("inbound", "outbound")]
-# base.peak2.plot <- plot.baseline.comparison(base.movement, peak.movement.2, "Constant movement", "Peak travel & stay", "Constant vs Seasonal at Peak")
-
-## 5. Simulate transmission with bi-directional movement peaking out of sync with malaria (off.peak.movement) ----
-travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
-travelers.holiday = matrix(c(0, 50, 50, 0), nrow = subpop, ncol = subpop)
-travel.days = seq(as.Date("2020-01-01"), as.Date("2020-04-01"),1)  # enter start and end date
-travel.days = c(travel.days)
-
-travelers <- make.constant.travel.rate.matrix(travel.dates, travelers.base, travelers.holiday)
-P[['travelers']] <- travelers
-off.peak.movement <- as.data.frame(mal.dynamic.mob.model(y0, P, "off.peak.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
-off.peak.movement <- off.peak.movement[ ,!colnames(off.peak.movement) %in% c("inbound", "outbound")]
-# base.off.peak.plot <- plot.baseline.comparison(base.movement, off.peak.movement, "Constant movement", "Constant off-peak movement",  "Constant vs Increase at Off-Peak")
-
-## 6. Simulate transmission with set days of movement peaking in sync with malaria (off.peak.movement.stay) ----
-travelers.base = matrix(c(0, 5, 5, 0), nrow = subpop, ncol = subpop)
-travelers.holiday <- cbind.data.frame(c(0, 50, 5, 0),
-                                      c(0, 5, 50, 0))
-travel.out.days <- seq(as.Date("2020-01-01"), as.Date("2020-01-10"), 1) # enter start and end date for outbound trips
-travel.back.days <- seq(as.Date("2020-04-26"), as.Date("2020-05-05"), 1)  # enter start and end date for return trips
-
-# travel.days <- c(as.Date("2020-01-01"), as.Date("2020-04-01"))
-travelers <- make.specific.date.travel.rate.matrix(travel.out.days, travel.back.days, travelers.base, travelers.holiday)
-P[['travelers']] <- travelers
-off.peak.movement.2 <- as.data.frame(mal.dynamic.mob.model(y0, P, "off.peak.and.stay.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
-off.peak.movement.2 <- off.peak.movement.2[ ,!colnames(off.peak.movement.2) %in% c("inbound", "outbound")]
-# base.off.peak2.plot <- plot.baseline.comparison(base.movement, off.peak.movement.2, "Constant movement", "Off peak travel & stay", "Constant vs Seasonal at Off-Peak")
-
-## FIGURE 1: Different ways mobility can impact transmission
-
-fig1.time.courses <- ggarrange(base.constant.movement.plot, base.off.peak2.plot, base.peak2.plot, base.off.peak.plot, base.peak1.plot,
-          nrow = 1)
-annotate_figure(fig1.time.courses,
-                bottom = text_grob("Month", color = "black",
-                                   hjust = 1, x = 1, face = "italic", size = 10),
-                left = text_grob("Infected population (proportion)", color = "black", rot = 90)
-)
-
-# Calculate % change in cases due to different mobility scenarios
-movement.scenarios <- rbind(peak.movement.1, peak.movement.2, off.peak.movement,off.peak.movement.2)
-movement.scenarios <- left_join(movement.scenarios, base.movement[, c("time.idx", "SEIR", "subpop", "prop.pop", "leaving.prop.total.i")], by = c("time.idx", "SEIR", "subpop"))
-movement.scenarios$model.name <- factor(movement.scenarios$model, 
-                                        levels = c("off.peak.and.stay.movement", "peak.and.stay.movement", "off.peak.movement", "peak.movement"),
-                                        labels = c("Relocate for Off-peak", "Relocate for Peak", "Increase for Off-peak", "Increase for Peak"))
-
-movement.totals <- subset(movement.scenarios, SEIR == "all.infected_h") %>%
-  group_by(model.name, subpop) %>%
-  summarise(total.infections = sum(count))
-baseline.totals <- subset(base.movement, SEIR == "all.infected_h") %>%
-  group_by(subpop) %>%
-  summarise(total.infections = sum(count))
-movement.totals <- left_join(movement.totals, baseline.totals, by = "subpop")
-movement.totals <- movement.totals %>%
-  mutate(change.in.infection = round((total.infections.x - total.infections.y)/total.infections.y*100,2))
-
-fig.1.infections <- ggplot(subset(movement.scenarios, SEIR %in% c("all.infected_h")), aes(t.months, prop.pop.x, color = as.factor(subpop)))+
-  geom_line(size = 1, linetype = 1)+
-  scale_color_manual(name = "Population", 
-                     values=c("black", "blue"))+
-  scale_x_date(breaks = seq(as.Date("2020-01-01"), 
-                            as.Date("2020-12-01"), by = "3 months"), date_labels ="%b")+
-  scale_y_continuous(breaks = c(0, 0.25, 0.5), limits = c(0, 0.6))+
-  facet_wrap(~model.name, nrow = 1)+
-  theme(aspect.ratio = 1,
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"),
-        axis.text = element_text(colour = 'black', size = 12),
-        axis.title = element_text(size = 12, hjust = 0.5, vjust = 0.5),
-        axis.text.x = element_blank(),
-        legend.position = 'none',
-        strip.text = element_blank(),
-        strip.background = element_blank()) +
-  labs(x = "", y = "Infections (proportion)")+ 
-  geom_line(aes(t.months, prop.pop.y, color = as.factor(subpop)),size = 1.5, linetype = 1, alpha = 0.3)
-
-fig.1.movement <- ggplot(subset(movement.scenarios, SEIR %in% c("all.infected_h")), aes(t.months, leaving.prop.total.i.x, color = as.factor(subpop)))+
-  geom_line(size = 1, linetype = 1)+
-  scale_color_manual(name = "Population", 
-                     values=c("black", "blue"))+
-  scale_x_date(breaks = seq(as.Date("2020-01-01"), 
-                            as.Date("2020-12-01"), by = "3 months"), date_labels ="%b")+
-  scale_y_continuous(breaks = c(0, 0.025, 0.05), limits = c(0,0.06))+ 
-  facet_wrap(~model.name, nrow = 1)+
-  theme(aspect.ratio = 1,
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"),
-        axis.text = element_text(colour = 'black', size = 12),
-        axis.title = element_text(size = 12, hjust = 0.5, vjust = 0.5),
-        legend.position = 'none',
-        strip.text = element_blank(),
-        strip.background = element_blank()) +
-  labs(x = "Time (months)", y = "Travelers (proportion)")+
-  geom_line(aes(t.months, leaving.prop.total.i.y, color = as.factor(subpop)),size = 1.5, linetype = 1, alpha = 0.3)
-
-
-fig.1.case.impact <- ggplot(movement.totals, aes(change.in.infection, model.name, fill = as.factor(subpop)))+
-  geom_bar(stat = "identity")+
-  labs(y = "Movement scenario", x = "Annual % change in cases,\n relative to baseline movement", fill = "Population")+
-  scale_fill_manual(values = c("black", "blue"))+
-  theme(aspect.ratio = 1,
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"),
-        axis.text = element_text(colour = 'black', size = 12),
-        axis.title = element_text(size = 12, hjust = 0.5, vjust = 0.5),
-        legend.position = 'none',
-        legend.title = element_text(size = 12),
-        legend.text = element_text(size = 12))
-  
-# print figures/.save as png #
-png("Fig1_cases.png", width = 6, height = 2.25, units = 'in', res = 600)
-fig.1.infections
-dev.off()
-png("Fig1_travelers.png", width = 6, height = 2.25, units = 'in', res = 600)
-fig.1.movement
-dev.off()
-png("Fig1_case_impact.png", width = 4, height = 4, units = 'in', res = 600)
-fig.1.case.impact
-dev.off()
-
-
-# ## 7. Simulate transmission with reduced mobility rates for infected people ------
-# prob.travel.SERA = matrix(c(0, 0.01, 0.01, 0), nrow = subpop, ncol = subpop) # Assuming 1 % of the population from SERA categories moves per day
-# prob.travel.I = matrix(c(0, 0.001, 0.001, 0), nrow = subpop, ncol = subpop) # Assuming 0.1 % of the population from I category moves per day
-# P[['prob.travel.SERA']] <- prob.travel.SERA
-# P[['prob.travel.I']] <- prob.travel.I
-# reduced.I.constant.movement <- as.data.frame(mal.constant.SEIRA.mob.model(y0, P, "reduced.I.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
-# base.reduced.I.constant.movement.plot <- plot.baseline.comparison(baseline, reduced.I.constant.movement, "No movement", "Constant movement \n Reduced I rate")
-
-# ## 8. Simulate transmission with reduced mobility into/out of location when cases are above threshold------
-# prob.travel.SERA = matrix(c(0, 0.01, 0.01, 0), nrow = subpop, ncol = subpop) # Assuming 1 % of the population from SERA categories moves per day
-# prob.travel.I = matrix(c(0, 0.001, 0.001, 0), nrow = subpop, ncol = subpop) # Assuming 0.1 % of the population from I category moves per day
-# P[['prob.travel.SERA']] <- prob.travel.SERA
-# P[['prob.travel.I']] <- prob.travel.I
-# P[["inbound.scaler"]] = 0.1  # once threshold is exceeded, travel rates into location are reduced to 10% of normal
-# P[["outbound.scaler"]] = 0.1  # once threshold is exceeded, travel rates out of location increased by 50% normal
-# P[["inbound.scaler.I"]] = 0.1  # once threshold is exceeded, travel rates into location are reduced to 10% of normal
-# P[["outbound.scaler.I"]] = 0.1  # once threshold is exceeded, travel rates out of location are reduced to 10% of normal
-# P[["threshold"]] = 0.35        # once prevalence exceeds 35%, scale back travel to/from location with outbreak
+P[['adjust.I']] <- 0.1 # infected, symptomatic people move at 1/10th the rate
+P[["inbound.scaler"]] = 0.1  # once threshold is exceeded, travel rates from all groups into/out of location are reduced to 10% of normal
+P[["outbound.scaler"]] = 0.1  
+P[["inbound.scaler.I"]] = 0.1  
+P[["outbound.scaler.I"]] = 0.1  
+P[["threshold"]] = 0.35        
 
 threshold.reduced.all.movement <- as.data.frame(mal.threshold.mob.model(y0, P, "threshold.movement"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
 threshold.reduced.all.movement <- threshold.reduced.all.movement[ ,!colnames(threshold.reduced.all.movement) %in% c("inbound", "outbound")]
-threshold.reduced.all.movement.plot <- plot.baseline.comparison(baseline, threshold.reduced.all.movement, "No movement", "Constant movement \n Threshold Reduce In/Out")
+threshold.reduced.all.movement.plot <- plot.baseline.comparison(baseline, threshold.reduced.all.movement, "No movement", "Constant movement \n Threshold Reduce In/Out", "test")
 
 ## 9. Simulate transmission with reduced mobility into and increased mobility out of location when cases are above threshold------
 prob.travel.SERA = matrix(c(0, 0.01, 0.01, 0), nrow = subpop, ncol = subpop) # Assuming 1 % of the population from SERA categories moves per day
@@ -272,7 +192,7 @@ P[["threshold"]] = 0.35        # once prevalence exceeds 35%, scale back travel 
 
 threshold.reduced.in.increased.out.movement <- as.data.frame(mal.threshold.mob.model(y0, P, "threshold.movement2"))  # this is where the first function, baseline, is called. Baseline then calls the ODE solver function.
 threshold.reduced.in.increased.out.movement <- threshold.reduced.in.increased.out.movement[ ,!colnames(threshold.reduced.in.increased.out.movement) %in% c("inbound", "outbound")]
-threshold.reduced.in.increased.out.movement.plot <- plot.baseline.comparison(baseline, threshold.reduced.in.increased.out.movement, "No movement", "Constant movement \n Threshold Reduce In/Increase Out")
+threshold.reduced.in.increased.out.movement.plot <- plot.baseline.comparison(baseline, threshold.reduced.in.increased.out.movement, "No movement", "Constant movement \n Threshold Reduce In/Increase Out", "test")
 
 test.no.mob <- subset(baseline, SEIR == "all.infected_h")%>%
   group_by(subpop, model)%>%
